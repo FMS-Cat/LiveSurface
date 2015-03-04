@@ -66,7 +66,6 @@ References
 			varying mat4 v_matrix;
 			uniform float u_t;
 			uniform vec2 u_r;
-			uniform sampler2D u_texture;
 			uniform vec3 u_camera;
 			uniform vec3 u_light;
 
@@ -154,10 +153,10 @@ References
 				nor.y -= delta.y;
 				nor = normalize(nor);
 
-				vec3 colBase = (.9+.2*wave(p))*vec3(.1,.45,.9);
-				col += cl( dot( nor, normalize( lig-pos ) ) )*colBase*.3; // dif
-				col += 1.2*colBase; // amb
-				col += pow( cl( dot( nor, normalize( normalize( lig-pos )+normalize( cam-pos ) ) ) )*1., 1E2 ); // spe
+				vec3 colBase = (1.+.3*wave(p))*vec3(.1,.45,.9);
+				col += cl( dot( nor, normalize( lig-pos ) ) )*colBase*.8; // dif
+				col += .7*colBase; // amb
+				col += pow( cl( dot( nor, normalize( normalize( lig-pos )+normalize( cam-pos ) ) ) )*1.01, 1E2 )*.5; // spe
 
 				gl_FragColor = vec4( col, 1. );
 			}
@@ -229,16 +228,16 @@ References
 				gl.uniform2fv( gl.getUniformLocation( prg, 'u_r' ), [cvs.width,cvs.height] );
 				gl.uniform3fv( gl.getUniformLocation( prg, 'u_camera' ), camPos );
 				gl.uniform3fv( gl.getUniformLocation( prg, 'u_light' ), accel );
-				gl.uniformMatrix4fv( gl.getUniformLocation( prg, 'u_matrixV' ), false, matV );
+
+				matP = CatMAT.perspective( 70, cvs.width/cvs.height, .01, 100 );
 				gl.uniformMatrix4fv( gl.getUniformLocation( prg, 'u_matrixP' ), false, matP );
 
-				gl.uniform1i(gl.getUniformLocation(prg,'uni_texture'),0);
+				matV = CatMAT.lookAt( camPos, [0,0,0], [0,1,0] );
+				gl.uniformMatrix4fv( gl.getUniformLocation( prg, 'u_matrixV' ), false, matV );
 
-				(function(){
-					var matM = CatMAT.identity();
-					gl.uniformMatrix4fv( gl.getUniformLocation( prg, 'u_matrixM' ), false, matM );
-					ob.draw();
-				}());
+				var matM = CatMAT.identity();
+				gl.uniformMatrix4fv( gl.getUniformLocation( prg, 'u_matrixM' ), false, matM );
+				ob.draw();
 
 				gl.flush();
 

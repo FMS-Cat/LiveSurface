@@ -24,11 +24,6 @@ References
 			-ms-user-select : none;
 		}
 
-		a
-		{
-			color : #CCCCCC;
-		}
-
 		#canvas
 		{
 			position : absolute;
@@ -74,8 +69,10 @@ References
 			uniform float u_phase;
 			uniform sampler2D u_texture;
 			uniform sampler2D u_perlin;
+			uniform sampler2D u_cameraTexture;
 			uniform vec3 u_camera;
 			uniform vec3 u_light;
+			uniform bool u_camLightEnable;
 
 			#define t u_t*.01
 			#define r u_r
@@ -85,21 +82,6 @@ References
 			#define DELTA0 1E-3
 			#define DELTA1 2E-3
 			#define DELTA2 4E-3
-
-			float hash(vec2 _v)
-			{
-		    return fract(sin(dot(_v,vec2(89.44,19.36)))*221.22);
-			}
-
-			float iHash(vec2 _v,vec2 _r)
-			{
-		    float h00 = hash(vec2(floor(_v*_r+v.xx)/_r));
-		    float h10 = hash(vec2(floor(_v*_r+v.yx)/_r));
-		    float h01 = hash(vec2(floor(_v*_r+v.xy)/_r));
-		    float h11 = hash(vec2(floor(_v*_r+v.yy)/_r));
-		    vec2 ip = vec2(smoothstep(v.xx,v.yy,mod(_v*_r,1.)));
-		    return (h00*(1.-ip.x)+h10*ip.x)*(1.-ip.y)+(h01*(1.-ip.x)+h11*ip.x)*ip.y;
-			}
 
 			float rgbAverage( vec3 _v )
 			{
@@ -115,9 +97,24 @@ References
 				vec3 pos = (v_matrix*vec4(v_pos,1.)).xyz;
 				vec3 nor = normalize((v_matrix*vec4(v_nor,0.)).xyz);
 				vec3 cam = u_camera;
-				vec3 lig = u_light;
-				if( lig.z < 0. ){
-					lig = -lig;
+
+				vec3 lightPos = u_light;
+				if( lightPos.z < 0. ){
+					lightPos = -lightPos;
+				}
+				vec3 lightCol = v.yyy;
+				if( u_camLightEnable )
+				{
+					lightCol = v.xxx;
+					vec3 lightMax = v.xxx;
+
+					for( float iy=.1; iy<1.; iy+=.2 ){
+						for( float ix=.1; ix<1.; ix+=.2 ){
+							vec3 tempTex = texture2D( u_cameraTexture, vec2( ix, iy ) ).xyz;
+							lightCol += tempTex/12.;
+						}
+					}
+
 				}
 
 				if( u_phase == 0. )
@@ -132,9 +129,9 @@ References
 					nor.y -= delta.y*4.;
 					nor = normalize(nor);
 
-					col += cl( dot( nor, normalize( lig-pos ) ) )*tex*.6; // dif
-					col += tex*.4; // amb
-					col += pow( cl( dot( nor, normalize( normalize( lig-pos )+normalize( cam-pos ) ) ) )*1., 1E2 )*.1; // spe
+					col += cl( dot( nor, normalize( lightPos-pos ) ) )*tex*lightCol*.6; // dif
+					col += tex*lightCol*.4; // amb
+					col += pow( cl( dot( nor, normalize( normalize( lightPos-pos )+normalize( cam-pos ) ) ) )*1., 1E2 )*lightCol*.1; // spe
 				}
 
 				if( u_phase == 1. )
@@ -149,9 +146,9 @@ References
 					nor.y -= delta.y*4.;
 					nor = normalize(nor);
 
-					col += cl( dot( nor, normalize( lig-pos ) ) )*tex*.6; // dif
-					col += tex*.4; // amb
-					col += pow( cl( dot( nor, normalize( normalize( lig-pos )+normalize( cam-pos ) ) ) )*1., 1E2 )*.6; // spe
+					col += cl( dot( nor, normalize( lightPos-pos ) ) )*tex*lightCol*.6; // dif
+					col += tex*lightCol*.4; // amb
+					col += pow( cl( dot( nor, normalize( normalize( lightPos-pos )+normalize( cam-pos ) ) ) )*1., 1E2 )*lightCol*.6; // spe
 				}
 
 				if( u_phase == 2. )
@@ -163,8 +160,8 @@ References
 
 						vec2 ps = mod( p, 1./20. );
 						vec2 pl = floor( p*20. )/20.;
-						float spe = cl( dot( nor, normalize( normalize( lig-pos )+normalize( cam-pos ) ) ) );
-						float pat = cl( pow( abs( dot( normalize( vec2( ps.x-.025, ps.y-.025 )*1E3 ), normalize( (lig+v.xyx*1.).xy ) ) ), 10. ) );
+						float spe = cl( dot( nor, normalize( normalize( lightPos-pos )+normalize( cam-pos ) ) ) );
+						float pat = cl( pow( abs( dot( normalize( vec2( ps.x-.025, ps.y-.025 )*1E3 ), normalize( (lightPos+v.xyx*1.).xy ) ) ), 10. ) );
 						vec3 base = vec3(
 							sin( exp(spe)*17. )*.5+.5,
 							sin( exp(spe)*17.+1. )*.5+.5,
@@ -181,9 +178,9 @@ References
 					nor.y -= delta.y*2.;
 					nor = normalize(nor);
 
-					col += dot( nor, normalize( lig-pos ) )*tex*.6; // dif
-					col += tex*.4; // amb
-					col += pow( cl( dot( nor, normalize( normalize( lig-pos )+normalize( cam-pos ) ) ) ), 8E2 )*.7; // spe
+					col += dot( nor, normalize( lightPos-pos ) )*tex*lightCol*.6; // dif
+					col += tex*lightCol*.4; // amb
+					col += pow( cl( dot( nor, normalize( normalize( lightPos-pos )+normalize( cam-pos ) ) ) ), 8E2 )*lightCol*.7; // spe
 				}
 
 				gl_FragColor = vec4( col, 1. );
@@ -192,6 +189,7 @@ References
 
 		<script src="catMAT.js"></script>
 		<script src="catGL.js"></script>
+		<script src="camera.js"></script>
 
 		<script>
 			var cvs = document.createElement( 'canvas' );
@@ -200,14 +198,14 @@ References
 			cvs.height = window.innerHeight;
 			document.body.appendChild( cvs );
 
-			var gl=cvs.getContext('experimental-webgl');
+			var gl=cvs.getContext( 'webgl' );
 
-			gl.enable(gl.DEPTH_TEST);
-			gl.enable(gl.CULL_FACE);
-			gl.enable(gl.BLEND);
-			gl.blendFuncSeparate(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA,gl.ONE,gl.ONE);
+			gl.enable( gl.DEPTH_TEST );
+			gl.enable( gl.CULL_FACE );
+			gl.enable( gl.BLEND );
+			gl.blendFuncSeparate( gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE );
 
-			var prg = CatGL.createProgram("vert","frag");
+			var prg = CatGL.createProgram( 'vert', 'frag' );
 			CatGL.program = prg;
 
 			var ob = new CatGL.Object();
@@ -227,9 +225,9 @@ References
 
 			var texPerlin = new CatGL.Texture();
 			texPerlin.setUrl( 'perlin.png' );
-			gl.activeTexture( gl.TEXTURE2 );
-			gl.bindTexture( gl.TEXTURE_2D, texPerlin.texture );
-			gl.uniform1i(gl.getUniformLocation(prg,'u_perlin'),2);
+
+			var cam = new Camera();
+			var texCam = new CatGL.Texture();
 
 			var t = 0;
 			var mouseX = 0;
@@ -246,18 +244,13 @@ References
 			var selectedMaterial = 0;
 
 			var touched = false;
+			var lastTap = 0;
+			var lightEnable = true;
+			var camLightEnable = false;
+
 			document.addEventListener( 'touchstart', function( _e ){
-				if( _e.touches.length == 1 ){
-					touched = true;
-					touch( _e.touches[0].clientX, _e.touches[0].clientY );
-				}
-			} );
-			document.addEventListener( 'mousedown', function( _e ){
-				if( !touched ){
-					touch( _e.clientX, _e.clientY );
-				}
-			} );
-			function touch( _x, _y ){
+
+				_e.preventDefault();
 
 				try{
 					cvs.requestFullScreen = cvs.requestFullScreen || cvs.mozRequestFullScreen || cvs.webkitRequestFullScreen;
@@ -267,9 +260,44 @@ References
 
 				resize();
 
-				var temp = document.createElement('span');
-				temp.innerHTML = 'yo<br>'+'<br>';
-				document.body.appendChild(temp);
+				touched = true;
+				if( _e.touches.length == 1 ){
+					touch1();
+				}
+				if( _e.touches.length == 2 ){
+					touch2( _e.touches[1].clientX, _e.touches[1].clientY );
+				}
+				if( _e.touches.length == 3 ){
+					touch3();
+				}
+
+			} );
+
+			document.addEventListener( 'mousedown', function( _e ){
+
+				_e.preventDefault();
+
+				if( !touched ){
+					if( _e.which == 1 ){
+						touch3();
+					}
+					if( _e.which == 3 ){
+						touch2( _e.clientX, _e.clientY );
+					}
+				}
+
+			} );
+
+			function touch1(){
+
+				if( t-lastTap < 20 ){
+					lightEnable = !lightEnable;
+				}
+				lastTap = t;
+
+			}
+
+			function touch2( _x, _y ){
 
 				mouseX = _x/window.innerWidth*2-1;
 				mouseY = -_y/window.innerHeight*2+1;
@@ -293,12 +321,19 @@ References
 						}
 					}
 				}
+
+			}
+
+			function touch3(){
+				camLightEnable = !camLightEnable;
 			}
 
 			window.addEventListener( 'devicemotion', function(e){
+
 				accelD[0] = e.accelerationIncludingGravity.x;
 				accelD[1] = e.accelerationIncludingGravity.y;
 				accelD[2] = e.accelerationIncludingGravity.z;
+
 			}, true );
 
 			function loop(){
@@ -316,7 +351,7 @@ References
 				gl.uniform1f( gl.getUniformLocation( prg, 'u_t' ), t );
 				gl.uniform2fv( gl.getUniformLocation( prg, 'u_r' ), [cvs.width,cvs.height] );
 				gl.uniform3fv( gl.getUniformLocation( prg, 'u_camera' ), camPos );
-				gl.uniform3fv( gl.getUniformLocation( prg, 'u_light' ), accel );
+				gl.uniform3fv( gl.getUniformLocation( prg, 'u_light' ), lightEnable ? accel : [0,4,9] );
 
 				matP = CatMAT.perspective( 70, cvs.width/cvs.height, .01, 100 );
 				gl.uniformMatrix4fv( gl.getUniformLocation( prg, 'u_matrixP' ), false, matP );
@@ -324,8 +359,21 @@ References
 				matV = CatMAT.lookAt( camPos, [0,0,0], [0,1,0] );
 				gl.uniformMatrix4fv( gl.getUniformLocation( prg, 'u_matrixV' ), false, matV );
 
+				gl.activeTexture( gl.TEXTURE1 );
+				gl.bindTexture( gl.TEXTURE_2D, texPerlin.texture );
+				gl.uniform1i( gl.getUniformLocation( prg, 'u_perlin' ), 1 );
+
+				gl.activeTexture( gl.TEXTURE2 );
+				if( camLightEnable ){
+					cam.capture();
+					texCam.setImage( cam.canvas );
+				}
+				gl.bindTexture( gl.TEXTURE_2D, texCam.texture );
+				gl.uniform1i( gl.getUniformLocation( prg, 'u_cameraTexture' ), 2 );
+				gl.uniform1i( gl.getUniformLocation( prg, 'u_camLightEnable' ), camLightEnable );
+
 				gl.activeTexture( gl.TEXTURE0 );
-				gl.uniform1i(gl.getUniformLocation(prg,'u_texture'),0);
+				gl.uniform1i( gl.getUniformLocation( prg, 'u_texture' ), 0 );
 
 				(function(){
 					var phase = 0;
