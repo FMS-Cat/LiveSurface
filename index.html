@@ -245,7 +245,7 @@ References
 
 			var touched = false;
 			var lastTap = 0;
-			var lightEnable = true;
+			var lightEnable = false;
 			var accelMemory = [ 0, 0, 10 ];
 			var camLightEnable = false;
 
@@ -263,10 +263,10 @@ References
 
 				touched = true;
 				if( _e.touches.length == 1 ){
-					touch1();
+					touch1( _e.touches[1].clientX, _e.touches[1].clientY );
 				}
 				if( _e.touches.length == 2 ){
-					touch2( _e.touches[1].clientX, _e.touches[1].clientY );
+					touch2();
 				}
 				if( _e.touches.length == 3 ){
 					touch3();
@@ -280,16 +280,16 @@ References
 
 				if( !touched ){
 					if( _e.which == 1 ){
-						touch3();
+						touch1( _e.clientX, _e.clientY );
 					}
 					if( _e.which == 3 ){
-						touch2( _e.clientX, _e.clientY );
+						touch3();
 					}
 				}
 
 			} );
 
-			function touch1(){
+			function touch1( _x, _y ){
 
 				if( t-lastTap < 20 ){
 					mouseX = _x/window.innerWidth*2-1;
@@ -319,7 +319,7 @@ References
 
 			}
 
-			function touch2( _x, _y ){
+			function touch2(){
 
 				accelMemory = accel;
 				lightEnable = !lightEnable;
