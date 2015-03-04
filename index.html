@@ -246,6 +246,7 @@ References
 			var touched = false;
 			var lastTap = 0;
 			var lightEnable = true;
+			var accelMemory = [ 0, 0, 10 ];
 			var camLightEnable = false;
 
 			document.addEventListener( 'touchstart', function( _e ){
@@ -291,6 +292,7 @@ References
 			function touch1(){
 
 				if( t-lastTap < 20 ){
+					accelMemory = accel;
 					lightEnable = !lightEnable;
 				}
 				lastTap = t;
@@ -339,7 +341,7 @@ References
 			function loop(){
 
 				for( var i=0; i<3; i++ ){
-					accel[i] += (accelD[i]-accel[i])*.3;
+					accel[i] += ( ( lightEnable ? accelD[i] : accelMemory[i] ) - accel[i] )*.3;
 				}
 
 				selectedAni += ( selected - selectedAni )*.1;
@@ -351,7 +353,7 @@ References
 				gl.uniform1f( gl.getUniformLocation( prg, 'u_t' ), t );
 				gl.uniform2fv( gl.getUniformLocation( prg, 'u_r' ), [cvs.width,cvs.height] );
 				gl.uniform3fv( gl.getUniformLocation( prg, 'u_camera' ), camPos );
-				gl.uniform3fv( gl.getUniformLocation( prg, 'u_light' ), lightEnable ? accel : [1.1,3,9] );
+				gl.uniform3fv( gl.getUniformLocation( prg, 'u_light' ), accel );
 
 				matP = CatMAT.perspective( 70, cvs.width/cvs.height, .01, 100 );
 				gl.uniformMatrix4fv( gl.getUniformLocation( prg, 'u_matrixP' ), false, matP );
