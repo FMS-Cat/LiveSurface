@@ -351,7 +351,7 @@ References
 				gl.uniform1f( gl.getUniformLocation( prg, 'u_t' ), t );
 				gl.uniform2fv( gl.getUniformLocation( prg, 'u_r' ), [cvs.width,cvs.height] );
 				gl.uniform3fv( gl.getUniformLocation( prg, 'u_camera' ), camPos );
-				gl.uniform3fv( gl.getUniformLocation( prg, 'u_light' ), lightEnable ? accel : [2,3,9] );
+				gl.uniform3fv( gl.getUniformLocation( prg, 'u_light' ), lightEnable ? accel : [1.1,3,9] );
 
 				matP = CatMAT.perspective( 70, cvs.width/cvs.height, .01, 100 );
 				gl.uniformMatrix4fv( gl.getUniformLocation( prg, 'u_matrixP' ), false, matP );
