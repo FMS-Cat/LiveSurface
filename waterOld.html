@@ -1,0 +1,213 @@
+<!--
+
+License Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.
+
+References
+	Metal texture by suppami
+	http://suppami.exblog.jp/492267
+
+	Oceanic by frankenburgh ( retrieved 24 Feb 2015 )
+	float wave() uses in water part
+	License Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.
+	https://www.shadertoy.com/view/4sXGRM
+
+-->
+
+<!DOCTYPE html>
+
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<style type="text/css">
+		a
+		{
+			color:#CCCCCC;
+		}
+
+		#canvas
+		{
+			position:absolute;
+			left:0px;
+			top:0px;
+		}
+		</style>
+	</head>
+	<body>
+		<canvas id="canvas"></canvas>
+		<div id="info"></div>
+
+		<script id="vert" type="x-shader/x-vertex">
+			attribute vec3 a_pos;
+			attribute vec3 a_nor;
+			attribute vec3 a_col;
+			varying vec3 v_pos;
+			varying vec3 v_nor;
+			varying vec3 v_col;
+			varying mat4 v_matrix;
+			uniform mat4 u_matrixM;
+			uniform mat4 u_matrixV;
+			uniform mat4 u_matrixP;
+
+			void main()
+			{
+				v_pos = a_pos;
+				v_nor = a_nor;
+				v_col = a_col;
+
+				v_matrix = u_matrixM;
+				gl_Position = u_matrixP*u_matrixV*u_matrixM*vec4( a_pos, 1.0 );
+			}
+		</script>
+
+		<script id="frag" type="x-shader/x-fragment">
+			precision mediump float;
+
+			uniform float u_t;
+			uniform vec2 u_r;
+			uniform vec3 acc;
+
+			#define t u_t
+
+			const float delW = 2E-3;
+			const vec2 v = vec2(0.,1.);
+
+			float hash(vec2 _v)
+			{
+				return fract(sin(dot(_v,vec2(89.44,19.36)))*221.22);
+			}
+
+			float iHash(vec2 _v,vec2 _r)
+			{
+				float h00 = hash(vec2(floor(_v*_r+v.xx)/_r));
+				float h10 = hash(vec2(floor(_v*_r+v.yx)/_r));
+				float h01 = hash(vec2(floor(_v*_r+v.xy)/_r));
+				float h11 = hash(vec2(floor(_v*_r+v.yy)/_r));
+				vec2 ip = vec2(smoothstep(v.xx,v.yy,mod(_v*_r,1.)));
+				return (h00*(1.-ip.x)+h10*ip.x)*(1.-ip.y)+(h01*(1.-ip.x)+h11*ip.x)*ip.y;
+			}
+
+			float noise(vec2 _v)
+			{
+				float sum = 0.;
+				for(int i=1; i<6; i++){
+					sum += iHash(_v+t*vec2(i)*.03,vec2(2.*pow(2.,float(i))))/pow(2.,float(i));
+				}
+				return sum + sin((_v.x+_v.y+t*.03)*10.)*.12;
+			}
+
+			void main(void)
+			{
+				vec2 p = (gl_FragCoord.xy*2.-u_r.xy)/u_r.x;
+				vec2 uv = (gl_FragCoord.xy/u_r.xy);
+				vec3 light = acc;
+
+				vec2 delta = -vec2(
+					(noise(p+v.yx*delW)-noise(p-v.yx*delW)),
+					(noise(p+v.xy*delW)-noise(p-v.xy*delW))
+				)*23.;
+				vec3 normal = normalize(vec3(delta,1.));
+
+				float dif = max(dot(normalize(-light+vec3(p,0.)),-normal)*.4,0.);
+				float amb = .7;
+				float spe = max(pow(dot(normalize(normalize(-light+vec3(p,0.))-v.xxy),-normal),1E2)*1.,0.);
+				gl_FragColor = vec4((dif+amb)*vec3(.1,.6,.9)*(.5+.5*noise(p))+vec3(spe),1.);
+			}
+		</script>
+
+		<script src="catMAT.js"></script>
+		<script src="catGL.js"></script>
+
+		<script>
+			var cvs=document.getElementById('canvas');
+			cvs.width=window.innerWidth;
+			cvs.height=window.innerHeight;
+
+			var gl=cvs.getContext('experimental-webgl');
+
+			gl.enable(gl.DEPTH_TEST);
+			gl.enable(gl.CULL_FACE);
+			gl.enable(gl.BLEND);
+			gl.blendFuncSeparate(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA,gl.ONE,gl.ONE);
+
+			var prg = CatGL.createProgram("vert","frag");
+			CatGL.program = prg;
+
+			var ob = new CatGL.Object();
+			ob.poly( [-1,-1,0,1,-1,0,1,1,0,-1,1,0], 0. );
+			ob.setBuffer();
+
+			var cube = new CatGL.Object();
+			cube.polyCube( [.1,.1,.1], 0. );
+			cube.setBuffer();
+
+			gl.activeTexture( gl.TEXTURE0 );
+			var texWood = new CatGL.Texture( "wood.png" );
+			var texMetal = new CatGL.Texture( "metal.png" );
+
+			var t = 0;
+			var mouseX = 0;
+			var mouseY = 0;
+			var accel = [ 0, 0, 10 ];
+
+			var camPos = [ 0, 0, 1 ];
+			var matV = CatMAT.lookAt( camPos, [0,0,0], [0,1,0] );
+			var matP = CatMAT.perspective( 70, cvs.width/cvs.height, .01, 100 );
+
+			var selected = 0;
+			var selectedAni = 0;
+			var selectedMaterial = 0;
+
+			document.addEventListener( 'touchstart', function(e){
+				cvs.requestFullScreen = cvs.requestFullScreen || cvs.mozRequestFullScreen || cvs.webkitRequestFullScreen;
+				cvs.requestFullScreen();
+			} );
+
+			window.addEventListener( 'devicemotion', function(e){
+				accel[0] = e.accelerationIncludingGravity.x;
+				accel[1] = e.accelerationIncludingGravity.y;
+				accel[2] = e.accelerationIncludingGravity.z;
+			}, true );
+
+			function loop()
+			{
+				selectedAni += ( selected - selectedAni )*.1;
+
+				gl.clearColor( 0., 0., 0., 1. );
+				gl.clearDepth( 1. );
+				gl.clear( gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT );
+
+				gl.uniform1f( gl.getUniformLocation( prg, 'u_t' ), t );
+				gl.uniform2fv( gl.getUniformLocation( prg, 'u_r' ), [cvs.width,cvs.height] );
+				gl.uniform3fv( gl.getUniformLocation( prg, 'u_camera' ), camPos );
+				gl.uniform3fv( gl.getUniformLocation( prg, 'u_light' ), accel );
+				gl.uniformMatrix4fv( gl.getUniformLocation( prg, 'u_matrixV' ), false, matV );
+				gl.uniformMatrix4fv( gl.getUniformLocation( prg, 'u_matrixP' ), false, matP );
+
+				gl.uniform1i(gl.getUniformLocation(prg,'uni_texture'),0);
+
+				(function(){
+					var matM = CatMAT.identity();
+					gl.uniformMatrix4fv( gl.getUniformLocation( prg, 'u_matrixM' ), false, matM );
+					ob.draw();
+				}());
+
+				gl.flush();
+
+				t++;
+				requestAnimationFrame( loop );
+			}
+			requestAnimationFrame( loop );
+
+			function resize()
+			{
+				var w=window.innerWidth;
+				var h=window.innerHeight;
+				cvs.width=w;
+				cvs.height=h;
+				gl.viewport(0,0,w,h);
+			}
+			resize();
+			window.onresize=resize;
+		</script>
+	</body>
+</html>
