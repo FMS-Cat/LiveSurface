@@ -292,8 +292,28 @@ References
 			function touch1(){
 
 				if( t-lastTap < 20 ){
-					accelMemory = accel;
-					lightEnable = !lightEnable;
+					mouseX = _x/window.innerWidth*2-1;
+					mouseY = -_y/window.innerHeight*2+1;
+
+					if( selected ){
+						selected = 0;
+					}else{
+						var p = CatMAT.raycastZ0( CatMAT.multiply( matP, matV ), camPos, mouseX, mouseY );
+						if( Math.abs(p[0])<1 ){
+							if(Math.abs(p[1]-.5)<.2){
+								selectedMaterial = 0;
+								selected = 1;
+							}
+							if(Math.abs(p[1])<.2){
+								selectedMaterial = 1;
+								selected = 1;
+							}
+							if(Math.abs(p[1]+.5)<.2){
+								selectedMaterial = 2;
+								selected = 1;
+							}
+						}
+					}
 				}
 				lastTap = t;
 
@@ -301,28 +321,8 @@ References
 
 			function touch2( _x, _y ){
 
-				mouseX = _x/window.innerWidth*2-1;
-				mouseY = -_y/window.innerHeight*2+1;
-
-				if( selected ){
-					selected = 0;
-				}else{
-					var p = CatMAT.raycastZ0( CatMAT.multiply( matP, matV ), camPos, mouseX, mouseY );
-					if( Math.abs(p[0])<1 ){
-						if(Math.abs(p[1]-.5)<.2){
-							selectedMaterial = 0;
-							selected = 1;
-						}
-						if(Math.abs(p[1])<.2){
-							selectedMaterial = 1;
-							selected = 1;
-						}
-						if(Math.abs(p[1]+.5)<.2){
-							selectedMaterial = 2;
-							selected = 1;
-						}
-					}
-				}
+				accelMemory = accel;
+				lightEnable = !lightEnable;
 
 			}
 
