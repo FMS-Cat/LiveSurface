@@ -120,13 +120,15 @@ References
 				if( u_phase == 0. )
 				{
 					vec3 tex = texture2D( u_texture, p.xy ).xyz;
+					p = p + normalize( lightPos-pos ).xy*(rgbAverage(tex)-.5)*.01;
+					tex = texture2D( u_texture, p ).xyz;
 
 					vec2 delta = vec2(
 						rgbAverage( ( texture2D( u_texture, p.xy+v.yx*DELTA0 )-texture2D( u_texture, p.xy-v.yx*DELTA0 ) ).xyz ),
 						rgbAverage( ( texture2D( u_texture, p.xy+v.xy*DELTA0 )-texture2D( u_texture, p.xy-v.xy*DELTA0 ) ).xyz )
 					);
-					nor.x -= delta.x*4.;
-					nor.y -= delta.y*4.;
+					nor.x -= delta.x*2.;
+					nor.y -= delta.y*2.;
 					nor = normalize(nor);
 
 					col += cl( dot( nor, normalize( lightPos-pos ) ) )*tex*lightCol*.6; // dif
@@ -136,11 +138,13 @@ References
 
 				if( u_phase == 1. )
 				{
-					vec3 tex = texture2D( u_texture, p.xy ).xyz;
+					vec3 tex = texture2D( u_texture, p ).xyz;
+					p = p + normalize( lightPos-pos ).xy*(rgbAverage(tex)-.5)*.004;
+					tex = texture2D( u_texture, p ).xyz;
 
 					vec2 delta = vec2(
-						rgbAverage( ( texture2D( u_texture, p.xy+v.yx*DELTA1 )-texture2D( u_texture, p.xy-v.yx*DELTA1 ) ).xyz ),
-						rgbAverage( ( texture2D( u_texture, p.xy+v.xy*DELTA1 )-texture2D( u_texture, p.xy-v.xy*DELTA1 ) ).xyz )
+						rgbAverage( ( texture2D( u_texture, p+v.yx*DELTA1 )-texture2D( u_texture, p-v.yx*DELTA1 ) ).xyz ),
+						rgbAverage( ( texture2D( u_texture, p+v.xy*DELTA1 )-texture2D( u_texture, p-v.xy*DELTA1 ) ).xyz )
 					);
 					nor.x -= delta.x*4.;
 					nor.y -= delta.y*4.;
