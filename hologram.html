@@ -203,10 +203,11 @@ References
 			var camPos = [ 0, 0, 1 ];
 
 			var touched = false;
+			var lastTap = 0;
 
 			document.addEventListener( 'touchstart', function( _e ){
+
 				_e.preventDefault();
-				touched = true;
 
 				try{
 					cvs.requestFullScreen = cvs.requestFullScreen || cvs.mozRequestFullScreen || cvs.webkitRequestFullScreen;
@@ -214,41 +215,49 @@ References
 				}catch( _e ){
 				}
 
+				resize();
+
+				touched = true;
+
 				switch( _e.touches.length ){
-					case 2:
-						touch1( _e.touches[0].clientX, _e.touches[0].clientY );
+					case 1:
+						touch1();
 						break;
-					case 3:
-						touch3();
+					case 2:
+						touch2();
 						break;
 				}
 			} );
 
 			document.addEventListener( 'mousedown', function( _e ){
+
 				_e.preventDefault();
-				try{
-					cvs.requestFullScreen = cvs.requestFullScreen || cvs.mozRequestFullScreen || cvs.webkitRequestFullScreen;
-					cvs.requestFullScreen();
-				}catch( _e ){
-				}
 
 				switch( _e.which ){
 					case 1:
-						touch1( _e.clientX, _e.clientY );
+						touch1();
 						break;
 					case 3:
-						touch3();
+						touch2();
 						break;
 				}
 			} );
 
 			var zoomD = 1;
 			function touch1( _x, _y ){
-				zoomD = zoomD == 1 ? 2 : 1;
+
+				if( t-lastTap < 20 ){
+					zoomD = zoomD == 1 ? 2 : 1;
+				}
+
+				lastTap = t;
+
 			}
 
-			function touch3(){
+			function touch2(){
+
 				iconInput.click();
+				
 			}
 
 			window.addEventListener( 'devicemotion', function(e){
