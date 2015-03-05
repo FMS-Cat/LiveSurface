@@ -192,6 +192,7 @@ References
 		<script src="camera.js"></script>
 
 		<script>
+
 			var cvs = document.createElement( 'canvas' );
 			cvs.id = 'canvas';
 			cvs.width = window.innerWidth;
@@ -248,6 +249,16 @@ References
 			var lightEnable = false;
 			var accelMemory = [ 0, 0, 10 ];
 			var camLightEnable = false;
+
+			var noSmooth = false;
+			(function(){
+				var regexp = /#(.+)/.exec( location.href );
+				if( regexp ){
+					if( regexp[1] == 'noSmooth' ){
+						noSmooth = true;
+					}
+				}
+			}());
 
 			document.addEventListener( 'touchstart', function( _e ){
 
@@ -342,6 +353,9 @@ References
 
 				for( var i=0; i<3; i++ ){
 					accel[i] += ( ( lightEnable ? accelD[i] : accelMemory[i] ) - accel[i] )*.3;
+					if( noSmooth ){
+						accel[i] = ( lightEnable ? accelD[i] : accelMemory[i] );
+					}
 				}
 
 				selectedAni += ( selected - selectedAni )*.12;
